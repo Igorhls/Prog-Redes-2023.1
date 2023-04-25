@@ -1,39 +1,47 @@
+#Igor Henrique
+
 import dpkt
 import datetime
 
-arq = "cap1.dump"
+def processar_captura(arquivo):
+    with open(arquivo, 'rb') as f:
+        pcap = dpkt.pcap.Reader(f)
 
-with open(arq, 'rb') as f:
-    pcap = dpkt.pcap.Reader(f)
+        inicia = None
+        termina = None
+        maior_pacote = 0
+        incompleto_pacote = 0
+        tamanho_pacotes = 0
+        total_pacotes = 0
 
-    inicia = None
-    termina = None
-    maior = 0
-    incompleto_p = 0
-    tamanho_p = 0
-    total_p = 0
+        for timestamp, buf in pcap:
+            if inicia is None:
+                inicia = datetime.datetime.fromtimestamp(timestamp)
+            fim_pacote = datetime.datetime.fromtimestamp(timestamp)
 
-    for timestamp, buf in pcap:
-        if inicia is None:
-            inicia = datetime.datetime.fromtimestamp(timestamp)
-        fim_p = datetime.datetime.fromtimestamp(timestamp)
+            eth = dpkt.ethernet.Ethernet(buf)
+            ip = eth.data
 
-        eth = dpkt.ethernet.Ethernet(buf)
-        ip = eth.data
+            if len(buf) < ip.len:
+                incompleto_pacote += 1
 
-        if len(buf) < ip.len:
-            incompleto_p += 1
+            if ip.len > maior_pacote:
+                maior_pacote = ip.len
 
-        if ip.len > maior:
-            maior = ip.len
+            tamanho_pacotes += ip.len
+            total_pacotes += 1
 
-        tamanho_p += ip.len
-        total_p += 1
+        media_pacotes = tamanho_pacotes / total_pacotes
 
-    media_p = tamanho_p / total_p
+        return inicia, fim_pacote, maior_pacote, incompleto_pacote, media_pacotes
 
-    print("A captura de pacotes inicia em {0} e termina em {1}."
-          "\nO maior pacote capturado é: {2}"
-          "\nOs pacotes não salvos são: {3}"
-          "\nA média dos tamanhos de pacotes é: {4}"
-          .format(inicia,termina,maior,incompleto_p,media_p))
+
+if __name__ == '__main__':
+    nome_arquivo = "cap1.dump"
+    inicia, fim, maior, incompleto, media = processar_captura(nome_arquivo)
+
+
+    print(f"A captura de pacotes inicia em {inicia} e termina em {fim}.")
+    print(f"O maior pacote capturado tem tamanho: {maior}.")
+    print(f"O número de pacotes incompletos é: {incompleto}.")
+    print(f"A média dos tamanhos de pacotes é: {media}.")
